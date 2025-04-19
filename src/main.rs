@@ -48,7 +48,7 @@ impl<'a> DeconstructedFloat32<'a> {
         let mantissa_bytes: [u8; 3] = DeconstructedFloat32::get_mantissa(val_);
 
         DeconstructedFloat32 {
-            float: &val,
+            float: val,
             sign_bit,
             exponent_byte,
             mantissa_bytes,
@@ -61,11 +61,7 @@ impl<'a> DeconstructedFloat32<'a> {
         let byte_1 = val & 0b00000000_00000000_11111111_00000000; // 8..=15
         let byte_0 = val & 0b00000000_00000000_00000000_11111111; // 0..=7
 
-        [
-            (byte_2 >> 16) as u8,
-            (byte_1 >> 8) as u8,
-            (byte_0 >> 0) as u8,
-        ]
+        [(byte_2 >> 16) as u8, (byte_1 >> 8) as u8, byte_0 as u8]
     }
 }
 
@@ -89,5 +85,5 @@ fn main() {
     println!("| sign         | {}{:031b} |", sign_bit_txt, 0);
     println!("| exponent     | {:01b}{}{:023b} |", 0, exponent_txt, 0);
     println!("| mantissa     | {:09b}{} |", 0, mantissa_txt);
-    println!("");
+    println!();
 }
