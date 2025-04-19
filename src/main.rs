@@ -15,11 +15,19 @@ struct  Args {
     debug: bool
 }
 
-/// extract the sign-bit from a u32 representing a float
-/// returns the sign-bit as a single byte
-/// assumes BE
-fn get_sign_bit(val: u32) -> u8 {
-    (val>> 31) as u8
+/// Extract the sign-bit from a u32 representing a float.
+/// A Copy of val is bit-shifted so the sign-bit is the LSB
+/// (assumes val is BigEndian).
+fn get_sign(val: u32) -> u32 {
+    val >> 31
+}
+
+/// Extract the exponent-byte from a u32 representing a float.
+/// A Copy of val is bit-shifted so the exponent-byte is the LSB,
+/// and then a mask is used to remove the sign-bit
+/// that prepends the exponent-byte (assumes val is BigEndian).
+fn get_exponent(val: u32) -> u32 {
+    (val >> 23) & 0b_00000000_11111111
 }
 
 ///  bit-layout of the three components encoded into the f32 type:
@@ -39,11 +47,16 @@ fn main() {
     let val: u32 = float.to_bits();
 
     // isolate the sign-bit
-    let sign_bit: u8 = get_sign_bit(val);
+    let sign_bit: u32 = get_sign(val);
+
+    // isolate the Exponent
+    let exponent_byte: u32 = get_exponent(val);
 
     println!("{}", float);
 
     if args.debug {
-        println!("| sign | {:08b} |", sign_bit);
+        println!("| input    | {:032b} |", val);
+        println!("| sign     | {:032b} |", sign_bit);
+        println!("| exponent | {:032b} |", exponent_byte);
     }
 }
