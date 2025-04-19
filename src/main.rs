@@ -81,7 +81,7 @@ fn main() {
     let mantissa_txt = format!("{:07b}{:08b}{:08b}", m_[0], m_[1], m_[2]).on_red();
 
     println!("\nInput: {}\n", float);
-    println!("| input (bits) | {:032b} |", float as u32);
+    println!("| input (bits) | {:032b} |", float.to_bits());
     println!("| sign         | {}{:031b} |", sign_bit_txt, 0);
     println!("| exponent     | {:01b}{}{:023b} |", 0, exponent_txt, 0);
     println!("| mantissa     | {:09b}{} |", 0, mantissa_txt);
