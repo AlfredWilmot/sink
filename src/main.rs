@@ -22,6 +22,13 @@ fn get_sign_bit(val: u32) -> u8 {
     (val>> 31) as u8
 }
 
+///  bit-layout of the three components encoded into the f32 type:
+///
+/// [] [<----- EXPONENT ---->] [<---- MANTISSA ---->]
+/// 31 30 29 28 27 26 25 24 23 22 21 20 19 18 17 .. 0
+/// ^
+/// (sign)
+///
 fn main() {
     let args = Args::parse();
 
