@@ -1,9 +1,11 @@
 #![allow(unused_variables, dead_code)]
 
+use std::{f32, process::exit};
+
 use clap::Parser;
 use colored::Colorize;
 
-/// Convert from a floating-point to fixed-point number
+/// Deconstruct a floating point number
 #[derive(Parser)]
 #[command(arg_required_else_help(true))]
 struct Args {
@@ -63,6 +65,21 @@ impl<'a> DeconstructedFloat32<'a> {
 
         [(byte_2 >> 16) as u8, (byte_1 >> 8) as u8, byte_0 as u8]
     }
+
+    fn print(&self) {
+        let sign_bit_txt = format!("{:b}", self.sign_bit).on_red();
+        let exponent_txt = format!("{:08b}", self.exponent_byte).on_red();
+
+        let m_ = self.mantissa_bytes;
+        let mantissa_txt = format!("{:07b}{:08b}{:08b}", m_[0], m_[1], m_[2]).on_red();
+
+        println!("\nInput: {:?}\n", self.float);
+        println!("| input (bits) | {:032b} |", self.float.to_bits());
+        println!("| sign         | {}{:031b} |", sign_bit_txt, 0);
+        println!("| exponent     | {:01b}{}{:023b} |", 0, exponent_txt, 0);
+        println!("| mantissa     | {:09b}{} |", 0, mantissa_txt);
+        println!();
+    }
 }
 
 fn main() {
@@ -71,19 +88,15 @@ fn main() {
     // get number from user input
     let float: f32 = args.number;
 
-    // deconstructs float into its components
-    let float_ = DeconstructedFloat32::new(&float);
+    // is the number within the allowed range?
+    if (f32::MIN..=f32::MAX).contains(&float) {
+        DeconstructedFloat32::new(&float).print();
+        exit(0);
+    }
 
-    let sign_bit_txt = format!("{:b}", float_.sign_bit).on_red();
-    let exponent_txt = format!("{:08b}", float_.exponent_byte).on_red();
-
-    let m_ = float_.mantissa_bytes;
-    let mantissa_txt = format!("{:07b}{:08b}{:08b}", m_[0], m_[1], m_[2]).on_red();
-
-    println!("\nInput: {}\n", float);
-    println!("| input (bits) | {:032b} |", float.to_bits());
-    println!("| sign         | {}{:031b} |", sign_bit_txt, 0);
-    println!("| exponent     | {:01b}{}{:023b} |", 0, exponent_txt, 0);
-    println!("| mantissa     | {:09b}{} |", 0, mantissa_txt);
-    println!();
+    println!(
+        "{}",
+        format!("Must be within range: [{:?}, {:?}]", f32::MIN, f32::MAX).red(),
+    );
+    exit(1);
 }
