@@ -1,4 +1,5 @@
-#![allow(unused_variables)]
+#![allow(unused_variables, dead_code)]
+
 use clap::Parser;
 
 /// Convert from a floating-point to fixed-point number
@@ -14,14 +15,28 @@ struct  Args {
     debug: bool
 }
 
+/// extract the sign-bit from a u32 representing a float
+/// returns the sign-bit as a single byte
+/// assumes BE
+fn get_sign_bit(val: u32) -> u8 {
+    (val>> 31) as u8
+}
+
 fn main() {
     let args = Args::parse();
 
     // get number from user input
     let float: f32 = args.number;
 
-    //
+    // convert the input to u32 for bit-manipuation
+    let val: u32 = float.to_bits();
+
+    // isolate the sign-bit
+    let sign_bit: u8 = get_sign_bit(val);
+
+    println!("{}", float);
+
     if args.debug {
-        println!("{}", float);
+        println!("| sign | {:08b} |", sign_bit);
     }
 }
