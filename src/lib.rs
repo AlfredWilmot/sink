@@ -1,2 +1,2 @@
-pub mod float;
 pub mod cpu;
+pub mod float;
