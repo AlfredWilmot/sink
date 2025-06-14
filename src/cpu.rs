@@ -15,10 +15,10 @@ impl CPU {
 
     /// read in the current operation referenced by the program_counter
     fn read_opcode(&self) -> u16 {
-        let op_byte1 = self.mem[self.pc] as u16;
-        let op_byte2 = self.mem[self.pc + 1] as u16;
+        let op_byte1 = self.mem[self.pc] as u16;      // 0b00000000XXXXXXXX
+        let op_byte2 = self.mem[self.pc + 1] as u16;  // 0b00000000YYYYYYYY
 
-        op_byte1 << 8 | op_byte2
+        op_byte1 << 8 | op_byte2  // 0bXXXXXXXXYYYYYYYY
 
     }
     /// decode the passed CHIP-8 opcode into its components:
@@ -59,7 +59,20 @@ impl CPU {
     }
 
     fn add_xy(&mut self, x: u8, y: u8) {
-        self.reg[x as usize] += self.reg[y as usize];
+        let lhs = self.reg[x as usize];
+        let rhs = self.reg[y as usize];
+
+        let (wrapped_val, overflow) = rhs.overflowing_add(lhs);
+        self.reg[x as usize] = wrapped_val;
+
+        // last register is used as a carry-flag
+        // which indicates an operation has overflowed the u8 register size
+        if overflow {
+            self.reg[0xF] = 1;
+        } else {
+            self.reg[0xF] = 0;
+        }
+
     }
 }
 
