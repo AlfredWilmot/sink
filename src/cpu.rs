@@ -114,3 +114,20 @@ pub fn test_addition() {
     cpu.run();
     assert_eq!(cpu.reg[0], expected_sum);
 }
+
+#[test]
+pub fn test_call_and_return() {
+
+    // instantiate a virtual CPU
+    let mut cpu = CPU::new();
+
+    // define a function composed of opcodes
+    let add_twice: [u8; 6] = [
+        0x80, 0x14,  // ADD reg 1 to reg 0
+        0x80, 0x14,  // --||--
+        0xEE, 0x00,  // RETURN
+    ];
+
+    // load the function into memory
+    cpu.mem[0x100..0x106].copy_from_slice(&add_twice);
+}
