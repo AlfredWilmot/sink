@@ -1,12 +1,25 @@
 /// A virtual CPU that implements a subset of CHIP-8 ops.
 pub struct CPU {
-    current_op: u16,
-    registers: [u8; 2],
+    op: u16,  // the current operation
+    reg: [u8; 16], // 16 registers can be addressed by a single hex val (0-F)
+    pc: usize,  // program counter: points to the current position in memory
+    mem: [u8; 4096], // 4K of RAM (0x1000)
 }
 
 impl CPU {
+
+    /// instantiates a default CPU
+    pub fn new() -> CPU {
+        CPU { op: 0, reg: [0; 16], pc: 0, mem: [0; 4096] }
+    }
+
+    /// read in the current operation referenced by the program_counter
     fn read_opcode(&self) -> u16 {
-        self.current_op
+        let op_byte1 = self.mem[self.pc] as u16;
+        let op_byte2 = self.mem[self.pc + 1] as u16;
+
+        op_byte1 << 8 | op_byte2
+
     }
     /// decode the passed CHIP-8 opcode into its components:
     /// n ---> 0x000F (number of bytes)
@@ -38,32 +51,28 @@ impl CPU {
     }
 
     pub fn run(&mut self) {
-        let opcode = self.read_opcode();
 
-        match self.decode(&opcode) {
+        match self.decode(&self.read_opcode()) {
             (0x8, x, y, 0x4) => self.add_xy(x, y),
             _ => todo!("implement remaining opcodes!"),
         }
     }
 
     fn add_xy(&mut self, x: u8, y: u8) {
-        self.registers[x as usize] += self.registers[y as usize];
+        self.reg[x as usize] += self.reg[y as usize];
     }
 }
 
 pub fn addition_demo() {
-    let mut cpu = CPU {
-        current_op: 0,
-        registers: [0, 2],
-    };
+    let mut cpu = CPU::new();
 
     // opcode:
     // > 8 -> the op involves two registers
     // > 0 -> signifies the first register
     // > 1 -> signifies the second register
     // > 4 -> indicates addition
-    cpu.current_op = 0x8014;
+    cpu.op = 0x8014;
 
-    cpu.registers[0] = 5;
-    cpu.registers[1] = 10;
+    cpu.reg[0] = 5;
+    cpu.reg[1] = 10;
 }
