@@ -1,8 +1,10 @@
 /// A virtual CPU that implements a subset of CHIP-8 ops.
 pub struct CPU {
-    reg: [u8; 16],   // 16 registers can be addressed by a single hex val (0-F)
-    pc: usize,       // program counter: points to the current position in memory
-    mem: [u8; 4096], // 4K of RAM (0x1000): opcode written here drive the CPU FSM
+    reg: [u8; 16],    // 16 registers can be addressed by a single hex val (0-F)
+    pc: usize,        // program counter: points to the current position in memory
+    mem: [u8; 4096],  // 4K of RAM (0x1000): opcode written here drive the CPU FSM
+    stack: [u16; 16], // support 16 nested function-calls before "stack overflow"
+    sp: usize,        // stack pointer: points to the current position in the stack
 }
 
 impl Default for CPU {
@@ -18,6 +20,8 @@ impl CPU {
             reg: [0; 16],
             pc: 0,
             mem: [0; 4096],
+            stack: [0; 16],
+            sp: 0,
         }
     }
 
