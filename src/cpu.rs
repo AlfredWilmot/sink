@@ -61,6 +61,22 @@ impl CPU {
         )
     }
 
+    fn call(&mut self, addr: u16) {
+
+        // cannot reference beyond the address space allocated to the stack!
+        if self.sp > self.stack.len() {
+            panic!("Stack Overflow");
+        }
+
+        // keep track of where the program counter has been pointing:
+        // > update the value of the call-stack currently referenced by the stack pointer
+        // > increment the stack pinter in preparation for the next call
+        // > update the program counter with the address that was called
+        self.stack[self.sp] = self.pc as u16;
+        self.sp += 1;
+        self.pc = addr as usize;
+    }
+
     pub fn run(&mut self) {
         loop {
             let opcode = self.read_opcode();
