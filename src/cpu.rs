@@ -13,10 +13,11 @@ impl Default for CPU {
     }
 }
 
-/// indicates address space reserved for system memory
-const RES_SYS_MEM: usize = 0x100; // 512 bytes
-
 impl CPU {
+
+    /// indicates address space reserved for system memory
+    const RES_SYS_MEM: usize = 0x100; // 512 bytes
+
     /// instantiates a default CPU
     pub fn new() -> CPU {
         CPU {
@@ -30,7 +31,7 @@ impl CPU {
 
     /// write to the address space reserved for system opcodes
     pub fn write_system_mem(&mut self, ops: &[u8]) {
-        if ops.len() as usize > RES_SYS_MEM {
+        if ops.len() as usize > CPU::RES_SYS_MEM {
             panic!("Cannot exceed system memory allocation!");
         }
         let start: usize = 0x000;
@@ -40,7 +41,7 @@ impl CPU {
 
     /// write to the address space reserved for program opcodes
     pub fn write_prog_mem(&mut self, ops: &[u8]) {
-        let start: usize = RES_SYS_MEM;
+        let start: usize = CPU::RES_SYS_MEM;
         let stop: usize = start + ops.len() as usize;
         self.mem[start..stop].copy_from_slice(&ops);
     }
