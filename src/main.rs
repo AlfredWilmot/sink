@@ -19,12 +19,18 @@ struct Args {
 enum Commands {
     /// Emulate a cpu that's loosely based on the CHIP-8 instruction set
     Cpu{
-        /// pass a list of opcode instructions for the cpu to execute
-        opcodes: Vec<u16>,
 
         /// load the cpu register with data
-        #[arg(short, long)]
-        register: Option<Vec<u8>>,
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ')]
+        reg: Option<Vec<String>>,
+
+        /// list of system opcodes for the cpu to execute
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ')]
+        sys: Vec<String>,
+
+        /// list of program opcodes for the cpu to execute
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ')]
+        prog: Vec<String>,
 
     },
     /// Deconstruct floats into their fixed-point binary representations
@@ -51,14 +57,24 @@ fn main() {
                 format!("Must be within range: [{:?}, {:?}]", f32::MIN, f32::MAX).red(),
             );
         }
-        Commands::Cpu { opcodes, register } => {
-            let cpu = CPU::new();
-            // attempt to update the CPU register
-            if let Some(reg) = register {
+        Commands::Cpu { reg, sys, prog } => {
+            let mut cpu = CPU::new();
 
+            // attempt to update the CPU register with the provided values
+            if let Some(reg) = reg {
+                for (idx, val) in reg.iter().enumerate() {
+                    println!("Inserted {} into register {}", val, idx);
+                    cpu.reg[idx] = *val;
+                }
             }
+
+            // attempt to load opcodes into memory
+            cpu.write_system_mem(&sys);
+            cpu.write_prog_mem(&prog);
+
+            // let's go!
+            cpu.run()
         }
-        _ => {},
     }
     exit(1);
 
