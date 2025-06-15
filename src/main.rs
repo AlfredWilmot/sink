@@ -64,7 +64,7 @@ fn main() {
             if let Some(reg) = reg {
                 for idx in 0..reg.len() {
                     let mut decoded: [u8; 1] = [0; 1];
-                    hex::decode_to_slice(&reg[idx], &mut decoded).expect("Hex values must be two bytes wide!");
+                    hex::decode_to_slice(&reg[idx], &mut decoded).expect("Hex values must be one byte wide!");
                     cpu.reg[idx] = decoded[0];
 
                     println!("Inserted {} into register {}", decoded[0], idx);
@@ -72,11 +72,24 @@ fn main() {
             }
 
             // attempt to load opcodes into memory
-            //cpu.write_system_mem(&sys);
-            //cpu.write_prog_mem(&prog);
+            let mut result: Vec<u8> = vec![];
+            let mut decoded: [u8; 1] = [0; 1];
+            for idx in 0..sys.len() {
+                hex::decode_to_slice(&sys[idx], &mut decoded).expect("Hex values must be one byte wide!");
+                result.push(decoded[0]);
+            }
+            cpu.write_system_mem(&result);
+
+            result.clear();
+            for idx in 0..prog.len() {
+                hex::decode_to_slice(&prog[idx], &mut decoded).expect("Hex values must be one byte wide!");
+                result.push(decoded[0]);
+            }
+            cpu.write_prog_mem(&result);
 
             // let's go!
-            cpu.run()
+            cpu.run();
+            println!("{:?}", cpu.reg[0]);
         }
     }
     exit(1);
