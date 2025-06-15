@@ -61,8 +61,8 @@ impl CPU {
         )
     }
 
-    fn call(&mut self, addr: u16) {
-
+    /// add a new entry to the call-stack
+    pub fn call(&mut self, addr: u16) {
         // cannot reference beyond the address space allocated to the stack!
         if self.sp > self.stack.len() {
             panic!("Stack Overflow");
@@ -77,14 +77,29 @@ impl CPU {
         self.pc = addr as usize;
     }
 
+    /// move down the call-stack
+    pub fn ret(&mut self) {
+        if self.sp == 0 {
+            panic!("Stack Underflow!")
+        }
+        self.sp -= 1;
+        self.pc = self.stack[self.sp] as usize;
+    }
+
     pub fn run(&mut self) {
         loop {
             let opcode = self.read_opcode();
             self.pc += 2; // each mem blk is u8 and can hold half a u16 instruction,
             // so shift the program-counter to the next instruction that's
             // sitting two blocks away from the current instruction
+
+            let nnn = opcode & 0x0FFF;
+            //let kk = (opcode & 0x00FF) as u8;
+
             match self.decode(&opcode) {
                 (0, 0, 0, 0) => return,
+                (0, 0, 0xE, 0xE) => self.ret(),
+                (0x2, _, _, _) => self.call(nnn),
                 (0x8, x, y, 0x4) => self.add_xy(x, y),
                 _ => todo!("implement remaining opcodes!"),
             }
@@ -116,7 +131,7 @@ pub fn test_addition() {
 
     // define some values for testing
     let summands = [5, 10, 10, 10];
-    let expected_sum = summands.iter().sum();
+    let expected_sum = summands.iter().sum(); // 5 + 10 + 10 + 10 = 35
 
     // load registers with summands
     for (idx, val) in summands.iter().enumerate() {
@@ -133,17 +148,31 @@ pub fn test_addition() {
 
 #[test]
 pub fn test_call_and_return() {
-
     // instantiate a virtual CPU
     let mut cpu = CPU::new();
 
+    // define some values for testing
+    let args = [5, 10];
+    let expected_sum = args[0] + args[1] * 2 + args[1] * 2; // 5 + (10 * 2 ) * 2
+
+    // load the values into the registiers
+    for (idx, val) in args.iter().enumerate() {
+        cpu.reg[idx] = *val;
+    }
+
     // define a function composed of opcodes
-    let add_twice: [u8; 6] = [
-        0x80, 0x14,  // ADD reg 1 to reg 0
-        0x80, 0x14,  // --||--
-        0xEE, 0x00,  // RETURN
+    let add_twice_func: [u8; 6] = [
+        0x80, 0x14, // ADD reg 1 to reg 0
+        0x80, 0x14, // --||--
+        0x00, 0xEE, // RETURN
     ];
 
-    // load the function into memory
-    cpu.mem[0x100..0x106].copy_from_slice(&add_twice);
+    // call the function loaded at 0x100 twice
+    let call_func_twice: [u8; 6] = [0x21, 0x00, 0x21, 0x00, 0x00, 0x00];
+
+    cpu.mem[0x000..0x006].copy_from_slice(&call_func_twice);
+    cpu.mem[0x100..0x106].copy_from_slice(&add_twice_func);
+
+    cpu.run();
+    assert_eq!(cpu.reg[0], expected_sum);
 }
