@@ -62,15 +62,18 @@ fn main() {
 
             // attempt to update the CPU register with the provided values
             if let Some(reg) = reg {
-                for (idx, val) in reg.iter().enumerate() {
-                    println!("Inserted {} into register {}", val, idx);
-                    cpu.reg[idx] = *val;
+                for idx in 0..reg.len() {
+                    let mut decoded: [u8; 1] = [0; 1];
+                    hex::decode_to_slice(&reg[idx], &mut decoded).expect("Hex values must be two bytes wide!");
+                    cpu.reg[idx] = decoded[0];
+
+                    println!("Inserted {} into register {}", decoded[0], idx);
                 }
             }
 
             // attempt to load opcodes into memory
-            cpu.write_system_mem(&sys);
-            cpu.write_prog_mem(&prog);
+            //cpu.write_system_mem(&sys);
+            //cpu.write_prog_mem(&prog);
 
             // let's go!
             cpu.run()
