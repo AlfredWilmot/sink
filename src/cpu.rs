@@ -1,8 +1,8 @@
 /// A virtual CPU that implements a subset of CHIP-8 ops.
 pub struct CPU {
-    reg: [u8; 16],    // 16 registers can be addressed by a single hex val (0-F)
-    pc: usize,        // program counter: points to the current position in memory
+    pub reg: [u8; 16],    // 16 registers can be addressed by a single hex val (0-F)
     mem: [u8; 4096],  // 4K of RAM (0x1000): opcode written here drive the CPU FSM
+    pc: usize,        // program counter: points to the current position in memory
     stack: [u16; 16], // support 16 nested function-calls before "stack overflow"
     sp: usize,        // stack pointer: points to the current position in the stack
 }
@@ -12,6 +12,9 @@ impl Default for CPU {
         Self::new()
     }
 }
+
+/// indicates address space reserved for system memory
+const RES_SYS_MEM: usize = 0x100; // 512 bytes
 
 impl CPU {
     /// instantiates a default CPU
@@ -23,6 +26,23 @@ impl CPU {
             stack: [0; 16],
             sp: 0,
         }
+    }
+
+    /// write to the address space reserved for system opcodes
+    pub fn write_system_mem(&mut self, ops: &[u8]) {
+        if ops.len() as usize > RES_SYS_MEM {
+            panic!("Cannot exceed system memory allocation!");
+        }
+        let start: usize = 0x000;
+        let stop: usize = start + ops.len() as usize;
+        self.mem[start..stop].copy_from_slice(&ops);
+    }
+
+    /// write to the address space reserved for program opcodes
+    pub fn write_prog_mem(&mut self, ops: &[u8]) {
+        let start: usize = RES_SYS_MEM;
+        let stop: usize = start + ops.len() as usize;
+        self.mem[start..stop].copy_from_slice(&ops);
     }
 
     /// read in the current operation referenced by the program_counter
@@ -141,7 +161,7 @@ pub fn test_addition() {
     (cpu.mem[0], cpu.mem[1]) = (0x80, 0x14); // 0x8014 (8: two registers [0 & 1], 4: addition)
     (cpu.mem[2], cpu.mem[3]) = (0x80, 0x24); // 0x8024 (8: two registers [0 & 2], 4: addition)
     (cpu.mem[4], cpu.mem[5]) = (0x80, 0x34); // 0x8034 (8: two registers [0 & 3], 4: addition)
-
+                                             //
     cpu.run();
     assert_eq!(cpu.reg[0], expected_sum);
 }
@@ -160,18 +180,17 @@ pub fn test_call_and_return() {
         cpu.reg[idx] = *val;
     }
 
+    // call the function loaded at 0x100 twice
+    let call_func_twice: [u8; 6] = [0x21, 0x00, 0x21, 0x00, 0x00, 0x00];
+    cpu.write_system_mem(&call_func_twice);
+
     // define a function composed of opcodes
     let add_twice_func: [u8; 6] = [
         0x80, 0x14, // ADD reg 1 to reg 0
         0x80, 0x14, // --||--
         0x00, 0xEE, // RETURN
     ];
-
-    // call the function loaded at 0x100 twice
-    let call_func_twice: [u8; 6] = [0x21, 0x00, 0x21, 0x00, 0x00, 0x00];
-
-    cpu.mem[0x000..0x006].copy_from_slice(&call_func_twice);
-    cpu.mem[0x100..0x106].copy_from_slice(&add_twice_func);
+    cpu.write_prog_mem(&add_twice_func);
 
     cpu.run();
     assert_eq!(cpu.reg[0], expected_sum);
