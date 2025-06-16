@@ -18,8 +18,7 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     /// Emulate a cpu that's loosely based on the CHIP-8 instruction set
-    Cpu{
-
+    Cpu {
         /// load the cpu register with data
         #[arg(short, long, num_args = 1.., value_delimiter = ' ')]
         reg: Option<Vec<String>>,
@@ -31,21 +30,19 @@ enum Commands {
         /// list of program opcodes for the cpu to execute
         #[arg(short, long, num_args = 1.., value_delimiter = ' ')]
         prog: Vec<String>,
-
     },
     /// Deconstruct floats into their fixed-point binary representations
-    Float{
+    Float {
         /// floating point number
-        number: f32
+        number: f32,
     },
 }
-
 
 fn main() {
     let args = Args::parse();
 
     match args.cmd {
-        Commands::Float{number} => {
+        Commands::Float { number } => {
             // is the number within the allowed range?
             if (f32::MIN..=f32::MAX).contains(&number) {
                 DeconstructedFloat32::new(&number).print();
@@ -84,7 +81,6 @@ fn main() {
         }
     }
     exit(1);
-
 }
 
 /// Iteratively strip two chars from each entry in vector of Strings
@@ -96,7 +92,7 @@ fn parse_args_to_byte_array(input: &Vec<String>) -> Vec<u8> {
         while reversed_chars.len() > 0 {
             let msb = reversed_chars.pop().unwrap();
             let lsb = reversed_chars.pop().unwrap();
-            let val: String  = [msb, lsb].iter().collect();
+            let val: String = [msb, lsb].iter().collect();
             result.push(u8::from_str_radix(&val, 16).unwrap());
         }
     }
