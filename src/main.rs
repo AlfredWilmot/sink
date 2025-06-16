@@ -1,103 +1,100 @@
 #![allow(unused_variables, dead_code)]
 
+use colored::Colorize;
 use std::{f32, process::exit};
 
-use clap::Parser;
-use colored::Colorize;
+use clap::{Parser, Subcommand};
 
-/// Coerce floating-points into fixed-point numbers.
+use sink::{cpu::CPU, float::DeconstructedFloat32};
+
+/// Let's sink down into the dingy depths of the OS!
 #[derive(Parser)]
 #[command(arg_required_else_help(true))]
 struct Args {
-    /// specify a floating point number
-    number: f32,
+    #[command(subcommand)]
+    cmd: Commands,
 }
 
-///  bit-pattern of the three components encoded into the f32 type:
-///
-/// [] [<----- EXPONENT_MASK ---->] [<---- MANTISSA_MASK ---->]
-/// 31 30 29 28 27 26 25 24 23 22 21 20 19 18 17 .. 0
-/// ^
-/// (sign)
-///
-/// (assumes val is BigEndian)
-///
-struct DeconstructedFloat32<'a> {
-    // reference to the original float this deconstruction is based on.
-    float: &'a f32,
+#[derive(Subcommand)]
+enum Commands {
+    /// Emulate a cpu that's loosely based on the CHIP-8 instruction set
+    Cpu {
+        /// load the cpu register with data
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ')]
+        reg: Option<Vec<String>>,
 
-    // IEEE 754-XXXX standards define:
-    //
-    // RADIX  = 2 (base)
-    // BIAS = 127 (exponent offset)
-    //
-    sign_bit: u8,
-    exponent_byte: u8,
-    mantissa_bytes: [u8; 3],
-}
+        /// list of system opcodes for the cpu to execute
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ')]
+        sys: Vec<String>,
 
-impl<'a> DeconstructedFloat32<'a> {
-    /// create a deconstructed float from an input f32
-    pub fn new(val: &'a f32) -> DeconstructedFloat32<'a> {
-        // convert the input to u32 for bit-manipuation
-        let bits: u32 = val.to_bits();
-
-        // define some masks
-        const SIGN_MASK: u32 = 0b10000000_00000000_00000000_00000000; // sign-bit
-        const EXPO_MASK: u32 = 0b01111111_10000000_00000000_00000000; // exponent-byte
-        const MANT_MASK: u32 = 0b00000000_01111111_11111111_11111111; // mantissa-bytes
-
-        // apply masks to bits and shift to extract relevant bytes for each component:
-        // (NOTE: masking sign_bit is redundant (it's the MSB) but done for consistency)
-        let sign_bit = ((bits & SIGN_MASK) >> 31) as u8;
-        let exponent_byte = ((bits & EXPO_MASK) >> 23) as u8;
-        let mantissa_bytes = [
-            (bits & MANT_MASK) >> 16,
-            (bits & MANT_MASK) >> 8,
-            (bits & MANT_MASK),
-        ]
-        .map(|v| v as u8);
-
-        DeconstructedFloat32 {
-            float: val,
-            sign_bit,
-            exponent_byte,
-            mantissa_bytes,
-        }
-    }
-
-    /// display the contents of the deconstructed float.
-    fn print(&self) {
-        let sign_bit_txt = format!("{:b}", self.sign_bit).on_red();
-        let exponent_txt = format!("{:08b}", self.exponent_byte).on_red();
-
-        let m_ = self.mantissa_bytes;
-        let mantissa_txt = format!("{:07b}{:08b}{:08b}", m_[0], m_[1], m_[2]).on_red();
-
-        println!("\nInput: {:?}\n", self.float);
-        println!("| input (bits) | {:032b} |", self.float.to_bits());
-        println!("| sign         | {}{:031b} |", sign_bit_txt, 0);
-        println!("| exponent     | {:01b}{}{:023b} |", 0, exponent_txt, 0);
-        println!("| mantissa     | {:09b}{} |", 0, mantissa_txt);
-        println!();
-    }
+        /// list of program opcodes for the cpu to execute
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ')]
+        prog: Vec<String>,
+    },
+    /// Deconstruct floats into their fixed-point binary representations
+    Float {
+        /// floating point number
+        number: f32,
+    },
 }
 
 fn main() {
     let args = Args::parse();
 
-    // get number from user input
-    let float: f32 = args.number;
+    match args.cmd {
+        Commands::Float { number } => {
+            // is the number within the allowed range?
+            if (f32::MIN..=f32::MAX).contains(&number) {
+                DeconstructedFloat32::new(&number).print();
+                exit(0);
+            }
 
-    // is the number within the allowed range?
-    if (f32::MIN..=f32::MAX).contains(&float) {
-        DeconstructedFloat32::new(&float).print();
-        exit(0);
+            println!(
+                "{}",
+                format!("Must be within range: [{:?}, {:?}]", f32::MIN, f32::MAX).red(),
+            );
+        }
+        Commands::Cpu { reg, sys, prog } => {
+            let mut cpu = CPU::new();
+
+            // attempt to update the CPU register with the provided values
+            if let Some(reg) = reg {
+                let result = parse_args_to_byte_array(&reg);
+                for (idx, entry) in result.iter().enumerate() {
+                    cpu.reg[idx] = *entry;
+                }
+                println!("Loaded register data:\t {:x?}", cpu.reg);
+            }
+
+            // attempt to load opcodes into memory
+            let result = parse_args_to_byte_array(&sys);
+            cpu.write_system_mem(&result);
+            println!("Loaded system memory:\t {:x?}", result);
+
+            let result = parse_args_to_byte_array(&prog);
+            cpu.write_prog_mem(&result);
+            println!("Loaded program memory:\t {:x?}", result);
+
+            // let's go!
+            cpu.run();
+            println!("Computed registers:\t {:x?}", cpu.reg);
+        }
     }
-
-    println!(
-        "{}",
-        format!("Must be within range: [{:?}, {:?}]", f32::MIN, f32::MAX).red(),
-    );
     exit(1);
+}
+
+/// Iteratively strip two chars from each entry in vector of Strings
+/// until all String entries have been consumed into an array of bytes
+fn parse_args_to_byte_array(input: &Vec<String>) -> Vec<u8> {
+    let mut result: Vec<u8> = vec![];
+    for entry in input {
+        let mut reversed_chars: Vec<char> = entry.chars().rev().collect();
+        while reversed_chars.len() > 0 {
+            let msb = reversed_chars.pop().unwrap();
+            let lsb = reversed_chars.pop().unwrap();
+            let val: String = [msb, lsb].iter().collect();
+            result.push(u8::from_str_radix(&val, 16).unwrap());
+        }
+    }
+    result
 }
