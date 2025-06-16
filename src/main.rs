@@ -62,36 +62,43 @@ fn main() {
 
             // attempt to update the CPU register with the provided values
             if let Some(reg) = reg {
-                for idx in 0..reg.len() {
-                    let mut decoded: [u8; 1] = [0; 1];
-                    hex::decode_to_slice(&reg[idx], &mut decoded).expect("Hex values must be one byte wide!");
-                    cpu.reg[idx] = decoded[0];
-
-                    println!("Inserted {} into register {}", decoded[0], idx);
+                let result = parse_args_to_byte_array(&reg);
+                for (idx, entry) in result.iter().enumerate() {
+                    cpu.reg[idx] = *entry;
                 }
+                println!("Loaded register data:\t {:x?}", cpu.reg);
             }
 
             // attempt to load opcodes into memory
-            let mut result: Vec<u8> = vec![];
-            let mut decoded: [u8; 1] = [0; 1];
-            for idx in 0..sys.len() {
-                hex::decode_to_slice(&sys[idx], &mut decoded).expect("Hex values must be one byte wide!");
-                result.push(decoded[0]);
-            }
+            let result = parse_args_to_byte_array(&sys);
             cpu.write_system_mem(&result);
+            println!("Loaded system memory:\t {:x?}", result);
 
-            result.clear();
-            for idx in 0..prog.len() {
-                hex::decode_to_slice(&prog[idx], &mut decoded).expect("Hex values must be one byte wide!");
-                result.push(decoded[0]);
-            }
+            let result = parse_args_to_byte_array(&prog);
             cpu.write_prog_mem(&result);
+            println!("Loaded program memory:\t {:x?}", result);
 
             // let's go!
             cpu.run();
-            println!("{:?}", cpu.reg[0]);
+            println!("Computed registers:\t {:x?}", cpu.reg);
         }
     }
     exit(1);
 
+}
+
+/// Iteratively strip two chars from each entry in vector of Strings
+/// until all String entries have been consumed into an array of bytes
+fn parse_args_to_byte_array(input: &Vec<String>) -> Vec<u8> {
+    let mut result: Vec<u8> = vec![];
+    for entry in input {
+        let mut reversed_chars: Vec<char> = entry.chars().rev().collect();
+        while reversed_chars.len() > 0 {
+            let msb = reversed_chars.pop().unwrap();
+            let lsb = reversed_chars.pop().unwrap();
+            let val: String  = [msb, lsb].iter().collect();
+            result.push(u8::from_str_radix(&val, 16).unwrap());
+        }
+    }
+    result
 }
